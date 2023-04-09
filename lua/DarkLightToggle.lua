@@ -1,4 +1,4 @@
-local jobId
+local timerId
 
 local function shallowCopyPartOfTable(sourceTable, destTable, keys)
 	for k, v in pairs(sourceTable) do
@@ -8,7 +8,7 @@ local function shallowCopyPartOfTable(sourceTable, destTable, keys)
 	end
 end
 
-local function setColorschemeBasedOnHour(dayColorscheme, nightColorscheme, dayColorschemeTimeRange, _isCallBack)
+local function setColorschemeBasedOnTime(dayColorscheme, nightColorscheme, dayColorschemeTimeRange, _isCallBack)
 	if type(dayColorscheme) ~= "string" or type(nightColorscheme) ~= "string" then
 		error("dayColorscheme and nightColorscheme need to be a string", 2)
 	end
@@ -61,23 +61,18 @@ local function setColorschemeBasedOnHour(dayColorscheme, nightColorscheme, dayCo
 		print("setting colorscheme to " .. alternateColorscheme .. " succedeed but " .. colorscheme .. " colorscheme is not valid, you should check that")
 		return 1
 	end
-	local function callBack(_, exitCode)
-		if exitCode ~= 0 then
-			return
-		end
-		setColorschemeBasedOnHour(dayColorscheme, nightColorscheme, dayColorschemeTimeRange, true)
+	if not _isCallBack and timerId then
+		vim.fn.timer_stop(timerId)
 	end
-	if not _isCallBack and jobId then
-		vim.fn.jobstop(jobId)
-	end
+	local function callback() setColorschemeBasedOnTime(dayColorscheme, nightColorscheme, dayColorschemeTimeRange, true) end
 	if colorscheme == dayColorscheme then
-		jobId = vim.fn.jobstart("sleep " .. endTime - currTime, { on_exit = callBack })
+		timerId = vim.fn.timer_start((endTime - currTime) * 1000, callback)
 	elseif colorscheme == nightColorscheme and currTime >= endTime then
-		jobId = vim.fn.jobstart("sleep " .. (startTime + 24 * 60 * 60) - currTime, { on_exit = callBack })
+		timerId = vim.fn.timer_start(((startTime + 24 * 60 * 60) - currTime) * 1000, callback)
 	elseif colorscheme == nightColorscheme and currTime < startTime then
-		jobId = vim.fn.jobstart("sleep " .. startTime - currTime, { on_exit = callBack })
+		timerId = vim.fn.timer_start((startTime - currTime) * 1000, callback)
 	end
 	return 0
 end
 
-return { setup = setColorschemeBasedOnHour }
+return { setup = setColorschemeBasedOnTime }
